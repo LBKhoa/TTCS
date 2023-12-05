@@ -1,93 +1,99 @@
-#include<stdio.h>
-#define INFINITY 9999
-#define MAX 10
- 
-void dijkstra(int G[MAX][MAX],int n,int startnode)
-{
- 
-	int cost[MAX][MAX],distance[MAX],pred[MAX];
-	int visited[MAX],count,mindistance,nextnode,i,j;
-	
-	//pred[] stores the predecessor of each node
-	//count gives the number of nodes seen so far
-	//create the cost matrix
-	for(i=0;i<n;i++)
-		for(j=0;j<n;j++)
-			if(G[i][j]==0)
-				cost[i][j]=INFINITY;
-			else
-				cost[i][j]=G[i][j];
-	
-	//initialize pred[],distance[] and visited[]
-	for(i=0;i<n;i++)
-	{
-		distance[i]=cost[startnode][i];
-		pred[i]=startnode;
-		visited[i]=0;
-	}
-	
-	distance[startnode]=0;
-	visited[startnode]=1;
-	count=1;
-	
-	while(count<n-1)
-	{
-		mindistance=INFINITY;
-		
-		//nextnode gives the node at minimum distance
-		for(i=0;i<n;i++)
-			if(distance[i]<mindistance&&!visited[i])
-			{
-				mindistance=distance[i];
-				nextnode=i;
-			}
-			
-			//check if a better path exists through nextnode			
-			visited[nextnode]=1;
-			for(i=0;i<n;i++)
-				if(!visited[i])
-					if(mindistance+cost[nextnode][i]<distance[i])
-					{
-						distance[i]=mindistance+cost[nextnode][i];
-						pred[i]=nextnode;
-					}
-		count++;
-	}
- 
-	//print the path and distance of each node
-	for(i=0;i<n;i++)
-		if(i!=startnode)
-		{
-			printf("\nDistance of node%d=%d",i,distance[i]);
-			printf("\nPath=%d",i);
-			
-			j=i;
-			do
-			{
-				j=pred[j];
-				printf("<-%d",j);
-			}while(j!=startnode);
-	}
-} 
-int main()
-{
-	int i,j,n,u;
-	n=8;
-    // graph in the question 13: lab 06-7
-	int G[MAX][MAX]={
-		{0,4,3,0,0,0,0,0},
-		{4,0,2,5,0,0,0,0},
-		{3,2,0,3,6,0,0,0},
-		{0,5,3,0,1,5,0,0},
-		{0,0,6,1,0,0,5,0},
-		{0,0,0,5,0,0,2,7},
-		{0,0,0,0,5,2,0,4},
-		{0,0,0,0,0,7,4,0}
-	};
-
-
-	printf("Enter the starting node:");
-	scanf("%d",&u);
-	dijkstra(G,n,u);
-	return 0;
+#include <stdio.h>
+#include <stdlib.h>
+#define INP "input.inp"
+#define OUT "output.out"
+  
+int main() {
+    FILE *fi = fopen(INP, "r");
+    FILE *fo = fopen(OUT, "w");
+    int n, a, b, i, sum = 0;
+  
+    // nhap du lieu tu file input
+    fscanf(fi, "%d%d%d", &n, &a, &b);
+    int G[n][n];
+    int S[n], Len[n], P[n];
+  
+    // nhap ma tran va tinh gia tri vo cung (sum)
+    for (i = 0; i < n; i++)
+        for (int j = 0; j < n; j++) {
+            fscanf(fi, "%d", &G[i][j]);
+            sum += G[i][j];
+        }
+    // dat vo cung cho tat ca cap canh khong noi voi nhau
+    for (int i = 0; i < n; i++) {
+        for (int j = 0; j < n; j++) {
+            if (i != j && G[i][j] == 0)
+                G[i][j] = sum;
+        }
+    }
+  
+    /* Do mang tinh tu G[0][0] nen can giam vi tri
+     di 1 don vi de tinh toan cho phu hop*/
+    a--;
+    b--;
+  
+    for (int i = 0; i < n; i++) {
+        Len[i] = sum;                   // khoi tao do dai tu a toi moi dinh la vo cung
+        S[i] = 0;                       // danh sach cac diem da xet
+        P[i] = a;                       // dat diem bat dau cua moi diem la a
+    }
+  
+    Len[a] = 0;                         // dat do dai tu a -> a la 0
+  
+    // tim duong di ngan nhat tu 1 dinh den moi dinh khac thi thay bang vong for:
+    //for (int k = 0; k < n; k++)
+    while (S[b] == 0) {                 // trong khi diem cuoi chua duoc xet
+        for (i = 0; i < n; i++)          // tim 1 vi tri ma khong phai la vo cung
+            if (!S[i] && Len[i] < sum)
+                break;
+  
+        // i >=n tuc la duyet het cac dinh ma khong the tim thay dinh b -> thoat
+        if (i >= n) {
+            printf("done dijkstra\n");
+            break;
+        }
+  
+        for (int j = 0; j < n; j++) {    // tim diem co vi tri ma do dai la min
+            if (!S[j] && Len[i] > Len[j]) {
+                i = j;
+            }
+        }
+  
+        S[i] = 1;                       // cho i vao danh sach xet roi
+  
+        for (int j = 0; j < n; j++) {    // tinh lai do dai cua cac diem chua xet
+            if (!S[j] && Len[i] + G[i][j] < Len[j]) {
+                Len[j] = Len[i] + G[i][j];      // thay doi len
+                P[j] = i;                       // danh dau diem truoc no
+            }
+        }
+    }
+  
+    printf("done dijkstra\n");
+  
+    /* Do ta dang tinh toan tu dinh 0 nen
+     muon hien thi tu dinh 1 thi can dung i + 1 de phu hop */
+  
+    printf("start find path\n");
+  
+    if (Len[b] > 0 && Len[b] < sum) {
+        fprintf(fo, "Length of %d to %d is %d\n", a + 1, b + 1, Len[b]);
+  
+        // truy vet
+        while (i != a) {
+            fprintf(fo, "%d <-- ", i + 1);
+            i = P[i];
+        }
+        fprintf(fo, "%d", a + 1);
+    } else {
+        fprintf(fo, "khong co duong di tu %d den %d\n", a + 1, b + 1);
+    }
+  
+    printf("done find path\n");
+  
+    fclose(fi);
+    fclose(fo);
+  
+    printf("done - open file output to see result\n");
+    return 0;
 }
