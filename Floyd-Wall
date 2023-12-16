@@ -1,1 +1,57 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <limits.h>
 
+#define INP "input.inp"
+#define OUT "output.out"
+
+int main() {
+    // Mở file input và output
+    FILE *fi = fopen(INP, "r");
+    FILE *fo = fopen(OUT, "w");
+
+    int n, a, b, i, j, k;
+
+    // Nhập dữ liệu từ file input
+    fscanf(fi, "%d%d%d", &n, &a, &b);
+    int G[n][n];
+
+    // Nhập ma trận trọng số
+    for (i = 0; i < n; i++)
+        for (j = 0; j < n; j++)
+            fscanf(fi, "%d", &G[i][j]);
+
+    // Thực hiện thuật toán Floyd-Warshall
+    for (k = 0; k < n; k++)
+        for (i = 0; i < n; i++)
+            for (j = 0; j < n; j++)
+                // Kiểm tra xem có tồn tại đường đi từ i đến k và từ k đến j không
+                // Đồng thời kiểm tra xem đường đi mới có ngắn hơn không
+                if (G[i][k] != INT_MAX && G[k][j] != INT_MAX && G[i][k] + G[k][j] < G[i][j])
+                    // Cập nhật đường đi ngắn nhất từ i đến j thông qua đỉnh k
+                    G[i][j] = G[i][k] + G[k][j];
+
+    // In kết quả từ điểm a đến điểm b
+    if (G[a - 1][b - 1] < INT_MAX) {
+        fprintf(fo, "Length of %d to %d is %d\n", a, b, G[a - 1][b - 1]);
+
+        // In đường đi ngắn nhất từ a đến b
+        fprintf(fo, "Path: %d", a);
+        i = a - 1;
+        j = b - 1;
+        while (i != j) {
+            fprintf(fo, " <- %d", i + 1);
+            i = G[i][j];
+        }
+        fprintf(fo, " <- %d\n", b);
+    } else {
+        fprintf(fo, "Khong co duong di tu %d denn %d\n", a, b);
+    }
+
+    // Đóng file
+    fclose(fi);
+    fclose(fo);
+
+    printf("Xong - Mo file ket qua de xem \n");
+    return 0;
+}
