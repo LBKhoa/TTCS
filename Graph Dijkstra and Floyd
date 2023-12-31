@@ -1,0 +1,525 @@
+#include <iostream>
+#include <fstream>
+#include <graphics.h>
+#include <cstdlib>
+#include <ctime>
+#include <cmath>
+#include <climits>
+#include <stack>
+#include <iomanip>
+#include <algorithm>
+#include <ios>
+
+using namespace std;
+
+const int MAX_VERTICES = 10;
+bool graphDrawn = false;
+
+typedef int item; // Ð?i ki?u d? li?u item thành int ho?c ki?u d? li?u phù h?p
+
+struct Point {
+    int x, y;
+};
+
+typedef struct GRAPH
+{
+	char *name;	// ten cac dinh
+	item **G;	// ma tran trong so
+	int n;		// so phan tu cua do thi
+} Graph;
+
+void generateRandomCoordinates(Point points[], Graph Gr);
+void saveGraph(const char* filename, Graph &Gr, Point points[]);
+void input_file(const char* filename, Graph &Gr, Point points[]);
+void input_B_E(const char* filename, Graph Gr, Point points[], int &a, int &b);
+void output_file(Graph Gr);
+int Dijkstra(Graph Gr, int a, int b);
+int floyd(Graph Gr, int a, int b);
+void drawArrowHead(int x1, int y1, int x2, int y2);
+void drawGraph(Graph Gr, Point points[]);
+void Menu(int &select);
+
+void generateRandomCoordinates(Point points[], Graph Gr) {
+    for (int i = 0; i < Gr.n; ++i) {
+        points[i].x = rand() % 400 + 50;
+        points[i].y = rand() % 400 + 50;
+    }
+}
+
+void saveGraph(const char* filename, Graph &Gr, Point points[]) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Khong the mo file." << std::endl;
+        return;
+    }
+
+    file << Gr.n << std::endl;
+
+    for (int i = 0; i < Gr.n; ++i) {
+        file << points[i].x << " " << points[i].y << " " << Gr.name[i] << std::endl;
+    }
+
+    for (int i = 0; i < Gr.n; ++i) {
+        for (int j = 0; j < Gr.n; ++j) {
+            file << Gr.G[i][j] << " ";
+        }
+        file << std::endl;
+    }
+
+    file.close();
+}
+
+
+void input_file(const char* filename, Graph &Gr, Point points[]) {
+    std::ifstream inp(filename);
+    if (!inp.is_open()) {
+        std::cerr << "Khong the mo file." << std::endl;
+        return;
+    }
+
+    inp >> Gr.n;
+
+	Gr.name = new char [Gr.n];
+    for (int i = 0; i < Gr.n; ++i) {
+        inp >> points[i].x >> points[i].y;
+    }
+    Gr.G = new int *[Gr.n];
+    
+    for (int i = 0; i < Gr.n; ++i) {
+        inp >> Gr.name[i];
+    }
+
+    for (int i = 0; i < Gr.n; ++i) {
+    	Gr.G[i] = new int [Gr.n];
+        for (int j = 0; j < Gr.n; ++j) {
+            inp >> Gr.G[i][j];
+        }
+    }
+
+    inp.close();
+}
+
+void input_B_E(const char* filename, Graph Gr, Point points[], int &a, int &b) {
+    input_file(filename,Gr, points);
+
+    a = b = 0;
+    std::cout << std::endl << "Cac dinh danh so tu 1 den " << Gr.n << ". Hoac tu " <<Gr.name[0]<<" den "<<Gr.name[Gr.n-1]<< std::endl;
+    std::cout << "Nhap dinh bat dau : ";
+
+    while (a < 1 || a > Gr.n) {
+        std::cin >> a;
+        if (a < 1 || a > Gr.n) {
+            std::cout << "Khong hop le ! \nNhap lai dinh bat dau : ";
+        }
+    }
+
+    std::cout << "Nhap dinh ket thuc : ";
+    while (b < 1 || b > Gr.n) {
+        std::cin >> b;
+        if (b < 1 || b > Gr.n) {
+            std::cout << "Khong hop le ! \nNhap lai dinh ket thuc : ";
+        }
+    }
+
+    a--;
+    b--;
+}
+
+void output_file(Graph Gr)
+{
+	//ofstream out(OUT);
+	fstream out;
+	out.open("output.OUT", ios::out|ios::trunc);
+	cout<<"Ma tran ke cua do thi"<<endl<<endl;
+	out<<"Ma tran ke cua do thi"<<endl<<endl;
+	for (int i=0; i<Gr.n; i++)
+	{
+		cout<<setw(2)<<Gr.name[i];
+		out<<setw(2)<<Gr.name[i];
+	}
+	out<<endl<<endl;
+	cout<<endl<<endl;
+	for (int i=0; i<Gr.n; i++)
+	{
+		for (int j=0; j<Gr.n; j++)
+		{
+			cout<<setw(2)<<Gr.G[i][j];
+			out<<setw(2)<<Gr.G[i][j];
+		}
+		cout<<endl;
+		out<<endl;
+	}
+	out.close();
+}
+
+item tongthiethai(Graph Gr) {
+    item sum = 0;
+    for (int i = 0; i < Gr.n; i++)
+        for (int j = 0; j < Gr.n; j++)
+            sum += Gr.G[i][j];
+    return sum;
+}
+
+void Menu(int &select)
+{
+    std::cout<<endl<<"Moi ban chon thuat toan :"<<endl;
+	std::cout<<"1: Thuat toan Dijkstra"<<endl;
+	std::cout<<"2: Thuat toan Floyd"<<endl;
+	std::cout<<"3: Thoat !"<<endl;
+	std::cin >> select;
+}
+
+
+void drawArrowHead(int x1, int y1, int x2, int y2) {
+    double angle = atan2(y2 - y1, x2 - x1);
+    const double arrowSize = 10.0;
+
+    int x3 = x2 - static_cast<int>(arrowSize * cos(angle - M_PI / 6));
+    int y3 = y2 - static_cast<int>(arrowSize * sin(angle - M_PI / 6));
+
+    int x4 = x2 - static_cast<int>(arrowSize * cos(angle + M_PI / 6));
+    int y4 = y2 - static_cast<int>(arrowSize * sin(angle + M_PI / 6));
+
+    setcolor(BLACK); // Ch?n màu tr?ng d? v? d?nh mui tên
+    line(x2, y2, x3, y3);
+    line(x2, y2, x4, y4);
+    setcolor(BLACK); // Ch?n màu den cho các d?i tu?ng v? ti?p theo
+}
+
+void drawGraph(Graph Gr, Point points[]) {
+    setbkcolor(BLUE); // Ð?t màu n?n là xanh duong
+    cleardevice();     // Xóa màn hình d? áp d?ng màu n?n
+
+    for (int i = 0; i < Gr.n; ++i) {
+        setfillstyle(SOLID_FILL, YELLOW);
+        circle(points[i].x, points[i].y, 10);
+        floodfill(points[i].x, points[i].y, WHITE);
+
+        char vertexName[2] = {Gr.name[i], '\0'};
+        outtextxy(points[i].x - 5, points[i].y - 15, vertexName);
+
+        delay(1000);
+    }
+
+    for (int i = 0; i < Gr.n; ++i) {
+        for (int j = 0; j < Gr.n; ++j) {
+            if (Gr.G[i][j] > 0) {
+                delay(1000);
+                setcolor(BLACK); // Ch?n màu den cho du?ng di và mui tên
+                line(points[i].x, points[i].y, points[j].x, points[j].y);
+
+                char weight[10];
+                sprintf(weight, "%d", Gr.G[i][j]);
+                outtextxy((points[i].x + points[j].x) / 2, (points[i].y + points[j].y) / 2, weight);
+
+                if (Gr.G[i][j] == 0) {
+                    drawArrowHead(points[i].x, points[i].y, points[j].x, points[j].y);
+                } else {
+                    drawArrowHead(points[j].x, points[j].y, points[i].x, points[i].y);
+                }
+            }
+        }
+    }
+    graphDrawn = true; // Ðánh d?u r?ng d? th? dã du?c v?
+}
+
+int Dijkstra(Graph Gr, int a, int b)
+{
+	fstream out;
+	out.open("output.OUT", ios::out|ios::app);
+	out<<endl<<"*****"<<endl;
+	// Len[i] - Gia tri nho nhat tu a -> i. Len1 danh dau do dai.
+	int Len[Gr.n];
+	int S[Gr.n];//Danh dau dinh thuoc danh sach dac biet
+	int P[Gr.n];//truy vet
+	
+	int max = tongthiethai(Gr);
+	fill (Len,Len+Gr.n,max); //Gan duong di ban dau = vo cung
+	fill (P,P+Gr.n,a);
+	fill (S,S+Gr.n,0); //Danh sach dac biet
+	Len[a] = 0;		// khoi tao do dai tu a->a = 0
+	int i = a, dem = 0, space = 10;
+	
+	//in ra hang tieu de
+	out<<setw(space/2)<<"TT |";
+	for (int i=0; i<Gr.n; i++)
+	{
+		char s[100];
+		sprintf(s,"%d%c%c%c",i+1,'(',Gr.name[i],')');
+		out<<setw(space)<<s;
+	}
+	out <<endl;
+	for (int i=0; i< (space/2) + Gr.n*10; i++)
+		out<<"-";
+	out<<endl;
+	//ket thuc in ra hang tieu de
+	
+	//while S<>V
+	for (int k=0; k<Gr.n; k++)
+	{
+		dem ++;
+		char *s = new char [100];
+		char vocung = '~' , gach[10] = "  -  ";
+		out<<setw(space/2-2)<<dem<<" |";
+		
+		//tim do dai ngan nhat trong cac dinh		
+		for (i=0; i<Gr.n; i++) // tim v thuoc (V-S) va Len[v] < vo cung
+			if (!S[i] && Len[i] != max)
+				break;
+		for (int j = i+1 ; j<Gr.n; j++)	// tim dinh co Len min
+			if (!S[j] && Len[j] < Len[i])
+				i = j;
+		S[i] = 1;	
+		
+		//----------In ra gia tri moi lan lap------------
+		if (dem > 0) 
+			for (int j=0; j<Gr.n; j++)
+			{
+				char temp[100];
+				strcpy(s," ");
+				if (dem >1 && j != i && S[j])
+					sprintf(s,"%c",'-');
+				else
+				{
+					if (j == i || (dem == 1 && j == a))
+						strcat(s,"*");
+					strcat(s,"[");
+					if ( j != i && !S[j] && Len[j] == max)
+						sprintf(temp,"%c,",vocung);
+					else
+						sprintf(temp,"%d,",Len[j]);
+					strcat(s,temp);
+					if (j!=a && k==0)
+						sprintf(temp, "%c", vocung);
+					else sprintf(temp, "%d", P[j]+1);	
+					strcat(s,temp);
+					strcat(s,"]");
+					
+				}
+				out<<setw(space)<<s;
+			}
+		
+		//----------Ket thuc In ra gia tri moi lan lap------------
+		
+		//--------Tinh do dai tu dinh dang xet toi cac dinh tiep
+		
+		for (int j = 0; j<Gr.n; j++) //thay doi do dai neu co
+		{
+			if (!S[j] && Gr.G[i][j])
+				if (Len[i] + Gr.G[i][j] < Len[j])
+				{
+					Len[j] = Len[i] + Gr.G[i][j];
+					P[j] = i; //truy vet
+				}
+		}	
+		out<<endl;			
+	}
+	
+	//Ket luan duong di
+	
+	out<<endl<<"Do dai ngan nhat cua duong di tu "<<a+1<<"("<<Gr.name[a]<<")"
+		<<" den "<<b+1<<"("<<Gr.name[b]<<")"<<" la "<<Len[b]<<endl;
+	out<<"Qua trinh duong di: ";
+	i = b;
+	char *s, *temp;
+	s = new char [Gr.n*10];
+	temp = new char [10];
+	sprintf(s,"%d",i+1);
+	while (i != a)
+	{
+		sprintf(temp,"%s"," --> ");
+		strcpy(s,strcat(temp,s));
+		sprintf(temp,"%d",P[i] +1);
+		strcpy(s,strcat(temp,s));
+			
+		i = P[i];
+	}	
+	out<<s<<endl;
+	cout<<"Hoan thanh ! Mo file output.out de xem ket qua !";
+	out.close();
+	return Len[b];
+}
+
+int floyd (Graph Gr, int a, int b)
+{
+	fstream out;
+	out.open("output.OUT", ios::out|ios::app);
+	int max = tongthiethai(Gr);
+	int A[Gr.n][Gr.n], P[Gr.n][Gr.n];
+	for (int i=0; i<Gr.n; i++)
+		for (int j=0; j<Gr.n; j++)
+		{
+			if (Gr.G[i][j])
+				A[i][j] = Gr.G[i][j];
+			else A[i][j] = max;
+			P[i][j] = -1;
+		}
+		
+	for (int k=0; k<Gr.n; k++)
+	{
+		out<<endl<<"Buoc thu "<<k<<endl;
+		out<<setw(2*Gr.n)<<"A"<<setw(15+4*Gr.n)<<"P"<<endl;
+		for (int i=0; i<Gr.n; i++)
+		{
+			
+			for (int j=0; j<Gr.n; j++)
+			{
+				char *temp = new char [50];
+				if (A[i][j] == max)
+					sprintf(temp,"%c",'~');
+				else
+					sprintf(temp,"%d",A[i][j]);
+				
+				out<<setw(4)<<temp;
+			}
+				
+			out<<setw(15)<<" ";
+			for (int j=0; j<Gr.n; j++)
+				out<<setw(4)<<P[i][j] + 1;
+			out<<endl;
+		}
+			
+		
+		for (int i=0; i<Gr.n; i++)
+			for (int j=0; j<Gr.n; j++)
+				if (A[i][j] > A[i][k] + A[k][j])
+				{
+					A[i][j] = A[i][k] + A[k][j];
+					P[i][j] = k ;
+				}	
+	}
+	
+	out<<endl<<"Do dai ngan nhat cua duong di tu "<<a+1<<"("<<Gr.name[a]<<")"<<" den "<<b+1<<"("<<Gr.name[b]<<")"<<" la "<<A[a][b]<<endl;
+	out<<"Qua trinh duong di: ";
+	
+	//truy vet
+	char *s, *temp;
+	s = new char [Gr.n*10];
+	temp = new char [10];
+	stack <item> S1;
+	stack <item> S2;
+	S1.push(a); //danh sach nap cac dinh vao
+	S1.push(b); //danh sach xuat cac dinh ra
+	int dich, tg;
+	while (!S1.empty())
+	{
+		dich = S1.top(); //dich = phan tu dau tien
+		S1.pop(); 		// dua phan tu do ra
+		S2.push(dich); //cho vao danh sach xuat
+		if (!S1.empty()) //trong khi S1 ko rong thi tiep tuc tim cac dinh
+		{
+			tg = S1.top(); 
+			while (P[tg][dich] != -1) //tim cac dinh di tu tg den dich
+			{
+				S1.push(P[tg][dich]);
+				tg = S1.top();
+			}
+		}
+	}
+	
+	sprintf(s,"%d",S2.top()+1);
+	S2.pop();
+	
+	while (!S2.empty())
+	{
+		sprintf(temp,"%s%d"," --> ",S2.top()+1);
+		strcat(s,temp);
+		S2.pop();
+	}
+	
+	out<<s<<endl;
+	cout<<"Hoan thanh ! Mo file output.out de xem ket qua !";
+	out.close();
+	
+	return A[a][b];	
+		
+}
+
+int main() {
+	
+	Graph Gr;
+	int a, b, *P, i, select = 1;
+    int choice;
+    
+    fstream out;
+    out.open("output.OUT", ios::out | ios::trunc);
+    
+    std::cout << "Chon cach tao do thi:\n";
+    std::cout << "1. Ngau nhien\n";
+    std::cout << "2. Doc tu file\n";
+    std::cout << "3. Nhap tu ban phim\n";
+    std::cout << "Nhap lua chon (1-3): ";
+    std::cin >> choice;
+
+    int gd = DETECT, gm;
+    initgraph(&gd, &gm, NULL);
+
+    srand(time(NULL));
+    Point points[MAX_VERTICES];
+
+    switch (choice) {
+        case 1:
+            std::cout << "Nhap so dinh: ";
+            std::cin >> Gr.n;
+            generateRandomCoordinates(points, Gr);
+            break;
+        case 2:
+            std::cout << "Nhap ten tap tin du lieu do thi (vi du: graph.txt): ";
+            char filename[100];
+            std::cin >> filename;
+            input_file(filename,Gr, points);
+            break;
+        case 3:
+            std::cout << "Nhap so dinh: ";
+            std::cin >> Gr.n;
+            std::cout << "Nhap toa do cac dinh:\n";
+            for (int i = 0; i < Gr.n; ++i) {
+                std::cout << "Dinh " << i + 1 << ": ";
+                std::cin >> points[i].x >> points[i].y;
+            }
+            break;
+        default:
+            std::cerr << "Lua chon khong hop le.\n";
+            closegraph();
+            return 1;
+    }
+    
+    drawGraph(Gr,points);
+    
+    while (select)
+	{
+		Menu(select);
+		switch (select)
+		{
+			case 1:
+			{
+				cout<<endl<<"-----Thuat toan Dijkstra-----"<<endl;
+                int startVertex, endVertex;
+                input_B_E("input.INP",Gr, points, a, b);
+                Dijkstra(Gr, a, b);
+                system("pause");
+                break;
+			} 
+			case 2:
+			{
+				cout<<endl<<"-----Thuat toan Floy-----"<<endl;
+                int startVertexF, endVertexF;
+                input_B_E("input.INP",Gr, points, a, b);
+                floyd (Gr, a, b);
+                system("pause");
+                break;
+			}
+		}
+		if (select == 3) break;
+	}
+	system("pause");
+
+    drawGraph(Gr, points);
+
+    getch();
+    closegraph();
+    
+    out.close();
+
+    return 0;
+}
