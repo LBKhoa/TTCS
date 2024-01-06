@@ -4,22 +4,23 @@
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
-#include <climits>
 #include <stack>
 #include <iomanip>
-#include <algorithm>
-#include <ios>
+#include <conio.h>
 
 using namespace std;
 
-const int MAX_VERTICES = 10;
+const int MAX_VERTICES = 100; 
+int P[MAX_VERTICES][MAX_VERTICES];
 bool graphDrawn = false;
 
-typedef int item; // Ð?i ki?u d? li?u item thành int ho?c ki?u d? li?u phù h?p
+int gd = DETECT, gm;
+
+typedef int item; // Doi kieu du lieu item thanh int hoac kieu du lieu phu hop
 
 struct Point {
     int x, y;
-};
+}points;
 
 typedef struct GRAPH
 {
@@ -28,8 +29,6 @@ typedef struct GRAPH
 	int n;		// so phan tu cua do thi
 } Graph;
 
-void generateRandomCoordinates(Point points[], Graph Gr);
-void saveGraph(const char* filename, Graph &Gr, Point points[]);
 void input_file(const char* filename, Graph &Gr, Point points[]);
 void input_B_E(const char* filename, Graph Gr, Point points[], int &a, int &b);
 void output_file(Graph Gr);
@@ -38,37 +37,8 @@ int floyd(Graph Gr, int a, int b);
 void drawArrowHead(int x1, int y1, int x2, int y2);
 void drawGraph(Graph Gr, Point points[]);
 void Menu(int &select);
-
-void generateRandomCoordinates(Point points[], Graph Gr) {
-    for (int i = 0; i < Gr.n; ++i) {
-        points[i].x = rand() % 400 + 50;
-        points[i].y = rand() % 400 + 50;
-    }
-}
-
-void saveGraph(const char* filename, Graph &Gr, Point points[]) {
-    std::ofstream file(filename);
-    if (!file.is_open()) {
-        std::cerr << "Khong the mo file." << std::endl;
-        return;
-    }
-
-    file << Gr.n << std::endl;
-
-    for (int i = 0; i < Gr.n; ++i) {
-        file << points[i].x << " " << points[i].y << " " << Gr.name[i] << std::endl;
-    }
-
-    for (int i = 0; i < Gr.n; ++i) {
-        for (int j = 0; j < Gr.n; ++j) {
-            file << Gr.G[i][j] << " ";
-        }
-        file << std::endl;
-    }
-
-    file.close();
-}
-
+void colorShortestPathFloyd(Graph Gr, Point points[], int a, int b, int P[][100]);
+void saveToInputFile(Graph Gr, Point points[]);
 
 void input_file(const char* filename, Graph &Gr, Point points[]) {
     std::ifstream inp(filename);
@@ -95,7 +65,6 @@ void input_file(const char* filename, Graph &Gr, Point points[]) {
             inp >> Gr.G[i][j];
         }
     }
-
     inp.close();
 }
 
@@ -125,31 +94,64 @@ void input_B_E(const char* filename, Graph Gr, Point points[], int &a, int &b) {
     b--;
 }
 
-void output_file(Graph Gr)
-{
-	//ofstream out(OUT);
-	fstream out;
-	out.open("output.OUT", ios::out|ios::trunc);
+void output_file(const char* filename, Graph Gr) {
+    ofstream out(filename);
+
+    if (!out.is_open()) {
+        cerr << "Khong the mo file " << filename << "." << endl;
+        return;
+    }
 	cout<<"Ma tran ke cua do thi"<<endl<<endl;
-	out<<"Ma tran ke cua do thi"<<endl<<endl;
-	for (int i=0; i<Gr.n; i++)
-	{
-		cout<<setw(2)<<Gr.name[i];
-		out<<setw(2)<<Gr.name[i];
-	}
-	out<<endl<<endl;
+    out << "Ma tran ke cua do thi" << endl << endl;
+
+    // In ten cac dinh
+    for (int i = 0; i < Gr.n; i++) {
+    	cout<<setw(2)<<Gr.name[i];
+        out << setw(2) << Gr.name[i];
+    }
+
+    out << endl << endl;
 	cout<<endl<<endl;
-	for (int i=0; i<Gr.n; i++)
-	{
-		for (int j=0; j<Gr.n; j++)
-		{
-			cout<<setw(2)<<Gr.G[i][j];
-			out<<setw(2)<<Gr.G[i][j];
-		}
-		cout<<endl;
-		out<<endl;
-	}
-	out.close();
+	//In toa do cac dinh
+    for (int i = 0; i < Gr.n; i++) {
+        for (int j = 0; j < Gr.n; j++) {
+        	cout<<setw(2)<<Gr.G[i][j];
+            out << setw(2) << Gr.G[i][j];
+        }
+        cout<<endl;
+        out << endl;
+    }
+
+    out.close();
+}
+
+void saveToInputFile(Graph Gr, Point points[]) {
+    std::ofstream file("input.INP");
+    if (!file.is_open()) {
+        std::cerr << "Khong the mo file input.INP\n";
+        return;
+    }
+
+    file << Gr.n << "\n"; // Ghi sO luOng dinh vao file
+    
+    for (int i = 0; i < Gr.n; ++i) {
+        file << points[i].x << " " << points[i].y << "\n";
+    }
+    
+    // Ghi toa do cac dinh vao file
+    for (int i = 0; i < Gr.n; ++i) {
+        file << char('A' + i) << " ";
+    }
+    file << "\n";
+	
+    // Ghi ma tran ke vao file
+    for (int i = 0; i < Gr.n; ++i) {
+        for (int j = 0; j < Gr.n; ++j) {
+            file << Gr.G[i][j] << " ";
+        }
+        file << "\n";
+    }
+    file.close();
 }
 
 item tongthiethai(Graph Gr) {
@@ -169,26 +171,9 @@ void Menu(int &select)
 	std::cin >> select;
 }
 
-
-void drawArrowHead(int x1, int y1, int x2, int y2) {
-    double angle = atan2(y2 - y1, x2 - x1);
-    const double arrowSize = 10.0;
-
-    int x3 = x2 - static_cast<int>(arrowSize * cos(angle - M_PI / 6));
-    int y3 = y2 - static_cast<int>(arrowSize * sin(angle - M_PI / 6));
-
-    int x4 = x2 - static_cast<int>(arrowSize * cos(angle + M_PI / 6));
-    int y4 = y2 - static_cast<int>(arrowSize * sin(angle + M_PI / 6));
-
-    setcolor(BLACK); // Ch?n màu tr?ng d? v? d?nh mui tên
-    line(x2, y2, x3, y3);
-    line(x2, y2, x4, y4);
-    setcolor(BLACK); // Ch?n màu den cho các d?i tu?ng v? ti?p theo
-}
-
 void drawGraph(Graph Gr, Point points[]) {
-    setbkcolor(BLUE); // Ð?t màu n?n là xanh duong
-    cleardevice();     // Xóa màn hình d? áp d?ng màu n?n
+    setbkcolor(BLUE);
+    cleardevice();
 
     for (int i = 0; i < Gr.n; ++i) {
         setfillstyle(SOLID_FILL, YELLOW);
@@ -198,32 +183,45 @@ void drawGraph(Graph Gr, Point points[]) {
         char vertexName[2] = {Gr.name[i], '\0'};
         outtextxy(points[i].x - 5, points[i].y - 15, vertexName);
 
-        delay(1000);
+        delay(100);
     }
 
     for (int i = 0; i < Gr.n; ++i) {
         for (int j = 0; j < Gr.n; ++j) {
             if (Gr.G[i][j] > 0) {
-                delay(1000);
-                setcolor(BLACK); // Ch?n màu den cho du?ng di và mui tên
+                delay(100);
+                setcolor(BLACK);
                 line(points[i].x, points[i].y, points[j].x, points[j].y);
 
                 char weight[10];
                 sprintf(weight, "%d", Gr.G[i][j]);
                 outtextxy((points[i].x + points[j].x) / 2, (points[i].y + points[j].y) / 2, weight);
-
-                if (Gr.G[i][j] == 0) {
-                    drawArrowHead(points[i].x, points[i].y, points[j].x, points[j].y);
-                } else {
-                    drawArrowHead(points[j].x, points[j].y, points[i].x, points[i].y);
-                }
             }
         }
     }
-    graphDrawn = true; // Ðánh d?u r?ng d? th? dã du?c v?
+    graphDrawn = true;
 }
 
-int Dijkstra(Graph Gr, int a, int b)
+void colorShortestPathDijkstra(Graph Gr, Point points[], int a, int b, int P[]) {
+    int path[MAX_VERTICES];
+    int pathLength = 0;
+
+    // Truy vet duong di và luu vao mang path
+    int current = b;
+    while (current != a) {
+        path[pathLength++] = current;
+        current = P[current];
+    }
+    path[pathLength++] = a;
+
+    // Tô mau duong di tren do thi
+    for (int i = 0; i < pathLength - 1; ++i) {
+        setcolor(YELLOW); // Chon mau vang cho duong di
+        line(points[path[i]].x, points[path[i]].y, points[path[i + 1]].x, points[path[i + 1]].y);
+    }
+}
+
+int Dijkstra(Graph Gr, Point points[], int a, int b)
 {
 	fstream out;
 	out.open("output.OUT", ios::out|ios::app);
@@ -333,14 +331,41 @@ int Dijkstra(Graph Gr, int a, int b)
 		strcpy(s,strcat(temp,s));
 			
 		i = P[i];
-	}	
+	}
+	
 	out<<s<<endl;
 	cout<<"Hoan thanh ! Mo file output.out de xem ket qua !";
 	out.close();
+	
+	colorShortestPathDijkstra(Gr, points, a, b, P);
+	
 	return Len[b];
 }
 
-int floyd (Graph Gr, int a, int b)
+void colorShortestPathFloyd(Graph Gr, Point points[], int a, int b, int** myPathMatrix) {
+    // Truy vet duong di va luu vao mang path
+    stack<int> pathStack;
+    int current = b;
+    pathStack.push(current);
+    while (current != a) {
+        current = myPathMatrix[a][current];
+        pathStack.push(current);
+    }
+
+    // To mau duong di tren do thi
+    int prev = -1;  // dinh truoc do tren duong di
+    while (!pathStack.empty()) {
+        current = pathStack.top();
+        pathStack.pop();
+        if (prev != -1) {
+            setcolor(YELLOW); // Chon mau vang
+            line(points[prev].x, points[prev].y, points[current].x, points[current].y);
+        }
+        prev = current;
+    }
+}
+
+int floyd (Graph Gr,Point points[], int a, int b)
 {
 	fstream out;
 	out.open("output.OUT", ios::out|ios::app);
@@ -379,7 +404,6 @@ int floyd (Graph Gr, int a, int b)
 			out<<endl;
 		}
 			
-		
 		for (int i=0; i<Gr.n; i++)
 			for (int j=0; j<Gr.n; j++)
 				if (A[i][j] > A[i][k] + A[k][j])
@@ -431,6 +455,18 @@ int floyd (Graph Gr, int a, int b)
 	cout<<"Hoan thanh ! Mo file output.out de xem ket qua !";
 	out.close();
 	
+	int** myPathMatrix = new int*[Gr.n];
+    for (int i = 0; i < Gr.n; ++i) {
+        myPathMatrix[i] = new int[Gr.n];
+    }
+    
+    colorShortestPathFloyd(Gr, points, a, b, myPathMatrix);
+    
+//	for (int i = 0; i < Gr.n; ++i) {
+//    		delete[] myPathMatrix[i];
+//	}
+//	delete[] myPathMatrix;
+	
 	return A[a][b];	
 		
 }
@@ -439,51 +475,64 @@ int main() {
 	
 	Graph Gr;
 	int a, b, *P, i, select = 1;
-    int choice;
+    int choice=1;
     
     fstream out;
     out.open("output.OUT", ios::out | ios::trunc);
     
     std::cout << "Chon cach tao do thi:\n";
-    std::cout << "1. Ngau nhien\n";
-    std::cout << "2. Doc tu file\n";
-    std::cout << "3. Nhap tu ban phim\n";
-    std::cout << "Nhap lua chon (1-3): ";
+    std::cout << "1. Doc tu file\n";
+    std::cout << "2. Nhap tu ban phim\n";
+    std::cout << "Nhap lua chon (1-2): ";
     std::cin >> choice;
 
     int gd = DETECT, gm;
-    initgraph(&gd, &gm, NULL);
+    initwindow(GetSystemMetrics(SM_CXSCREEN), GetSystemMetrics(SM_CYSCREEN), "Graph Visualization", true, true);
 
     srand(time(NULL));
     Point points[MAX_VERTICES];
-
-    switch (choice) {
+    
+	switch (choice) {
         case 1:
-            std::cout << "Nhap so dinh: ";
-            std::cin >> Gr.n;
-            generateRandomCoordinates(points, Gr);
-            break;
-        case 2:
             std::cout << "Nhap ten tap tin du lieu do thi (vi du: graph.txt): ";
             char filename[100];
             std::cin >> filename;
             input_file(filename,Gr, points);
             break;
-        case 3:
+        case 2:
             std::cout << "Nhap so dinh: ";
             std::cin >> Gr.n;
+
+            // Allocate memory for the adjacency matrix
+            Gr.G = new int *[Gr.n];
+            for (int i = 0; i < Gr.n; ++i) {
+                Gr.G[i] = new int[Gr.n];
+            }
+
             std::cout << "Nhap toa do cac dinh:\n";
             for (int i = 0; i < Gr.n; ++i) {
-                std::cout << "Dinh " << i + 1 << ": ";
+                std::cout << "Dinh " << char('A' + i) << ": ";
                 std::cin >> points[i].x >> points[i].y;
             }
+            std::cout << "Nhap ma tran ke do cac dinh:\n";
+            for (int i = 0; i < Gr.n; ++i) {
+                for (int j = 0; j < Gr.n; ++j) {
+                    std::cout << "Nhap vao gia tri tai vi tri [" << i << "][" << j << "]: ";
+                    std::cin >> Gr.G[i][j];
+                }
+            }
+            saveToInputFile(Gr, points);
+            input_file("input.INP",Gr, points);
             break;
         default:
             std::cerr << "Lua chon khong hop le.\n";
-            closegraph();
             return 1;
     }
     
+    int windowWidth = getmaxx();
+    int windowHeight = getmaxy();
+    
+    output_file("output.OUT",Gr);
     drawGraph(Gr,points);
     
     while (select)
@@ -495,8 +544,9 @@ int main() {
 			{
 				cout<<endl<<"-----Thuat toan Dijkstra-----"<<endl;
                 int startVertex, endVertex;
-                input_B_E("input.INP",Gr, points, a, b);
-                Dijkstra(Gr, a, b);
+                char filename[100];
+                input_B_E(filename,Gr, points, a, b);
+                Dijkstra(Gr,points, a, b);
                 system("pause");
                 break;
 			} 
@@ -504,18 +554,18 @@ int main() {
 			{
 				cout<<endl<<"-----Thuat toan Floy-----"<<endl;
                 int startVertexF, endVertexF;
-                input_B_E("input.INP",Gr, points, a, b);
-                floyd (Gr, a, b);
+                char filename[100];
+                input_B_E(filename,Gr, points, a, b);
+                floyd (Gr,points, a, b);
                 system("pause");
                 break;
 			}
 		}
 		if (select == 3) break;
 	}
+	
 	system("pause");
-
-    drawGraph(Gr, points);
-
+	
     getch();
     closegraph();
     
